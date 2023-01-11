@@ -1,5 +1,6 @@
 #  coding: utf-8 
 import socketserver
+import os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -28,11 +29,47 @@ import socketserver
 
 
 class MyWebServer(socketserver.BaseRequestHandler):
+    __allowed_uris = {"/", "/deep"}
+
+    def getDataFromUri(self, folder_name, filename, uri):
+        file_name = os.path.join(folder_name, uri, filename)
+        if not os.path.isfile(file_name):
+            self.request.sendall(b'HTTP/1.1 404 Not Found\r\n\r\n')
+            return
+        with open(file_name, 'rb') as f:
+            data = f.read()
+        return data
     
     def handle(self):
+        # get the data portion oft he request
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        print("Request data: %s\n" % self.data)
+
+        # split data by return and new line
+        lines = self.data.split(bytearray("\r\n", 'utf-8'))
+
+        # split the first line of data to get the method, uri, and http version
+        request_line = lines[0].decode()
+        method, uri, http_version = request_line.split(' ')
+        print("Method:", method, ", Uri:", uri, ", http_version:", http_version)
+
+        # if the method is not GET, send a Method Not Allowed message
+        if method != 'GET':
+            self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
+        
+        # set the different routes for GET requests that have / or /deep
+        if uri in self.__allowed_uris:
+            # get the css data and send it
+            css_data = self.getDataFromUri("www", uri.strip('/'), "base.css")
+            if css_data:
+                self.request.sendall(bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n" + css_data + "\r\n", 'utf-8'))
+
+            # get the html data and send it
+            html_data = self.getDataFromUri("www", uri.strip('/'), "index.html")
+            if html_data:
+                self.request.sendall(bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n" + css_data + "\r\n", 'utf-8'))
+        else:
+            self.request.sendall(bytearray("HTTP/1.1 404 NOT FOUND\r\n", 'utf-8'))
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
