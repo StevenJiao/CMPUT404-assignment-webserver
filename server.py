@@ -29,10 +29,9 @@ import os
 
 
 class MyWebServer(socketserver.BaseRequestHandler):
-    __allowed_uris = {"/", "/deep"}
-
-    def getDataFromUri(self, folder_name, filename, uri):
-        file_name = os.path.join(folder_name, uri, filename)
+    def getDataFromUri(self, folder_name, uri, filename = ""):
+        file_name = os.path.join(folder_name, uri, filename).rstrip('/')
+        print("file name:", file_name)
         if not os.path.isfile(file_name):
             self.request.sendall(b'HTTP/1.1 404 Not Found\r\n\r\n')
             return
@@ -56,20 +55,16 @@ class MyWebServer(socketserver.BaseRequestHandler):
         # if the method is not GET, send a Method Not Allowed message
         if method != 'GET':
             self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
-        
-        # set the different routes for GET requests that have / or /deep
-        if uri in self.__allowed_uris:
-            # get the css data and send it
-            css_data = self.getDataFromUri("www", uri.strip('/'), "base.css")
-            if css_data:
-                self.request.sendall(bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n" + css_data + "\r\n", 'utf-8'))
 
-            # get the html data and send it
-            html_data = self.getDataFromUri("www", uri.strip('/'), "index.html")
-            if html_data:
-                self.request.sendall(bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n" + css_data + "\r\n", 'utf-8'))
-        else:
-            self.request.sendall(bytearray("HTTP/1.1 404 NOT FOUND\r\n", 'utf-8'))
+        # see if we're provided an index.html filename or not
+        file_name = "index.html" if not (uri.endswith(".html") or uri.endswith(".css")) else ""
+
+        # get the data and send it
+        uri_data = self.getDataFromUri("www", uri.strip('/'), file_name)
+        if uri_data:
+            content_type = "text/css" if uri.endswith(".css") else "text/html" 
+            response = bytearray("HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\n", 'utf-8')
+            self.request.sendall(response + uri_data + bytearray("\r\n", 'utf-8'))
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
