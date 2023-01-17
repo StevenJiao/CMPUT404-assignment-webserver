@@ -33,7 +33,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
         file_name = os.path.join(folder_name, uri, filename).rstrip('/')
         print("file name:", file_name)
         if not os.path.isfile(file_name):
-            self.request.sendall(b'HTTP/1.1 404 Not Found\r\n\r\n')
+            self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n\r\n", 'utf-8'))
             return
         with open(file_name, 'rb') as f:
             data = f.read()
@@ -49,12 +49,16 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         # split the first line of data to get the method, uri, and http version
         request_line = lines[0].decode()
-        method, uri, http_version = request_line.split(' ')
+        if len(request_line.split(' ')) == 3:
+            method, uri, http_version = request_line.split(' ')
+        else:
+            return
+            
         print("Method:", method, ", Uri:", uri, ", http_version:", http_version)
 
         # if the method is not GET, send a Method Not Allowed message
         if method != 'GET':
-            self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
+            self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n\r\n", 'utf-8'))
 
         # see if we're provided an index.html filename or not
         file_name = "index.html" if not (uri.endswith(".html") or uri.endswith(".css")) else ""
@@ -63,8 +67,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
         uri_data = self.getDataFromUri("www", uri.strip('/'), file_name)
         if uri_data:
             content_type = "text/css" if uri.endswith(".css") else "text/html" 
-            response = bytearray("HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\n", 'utf-8')
-            self.request.sendall(response + uri_data + bytearray("\r\n", 'utf-8'))
+            header = bytearray("HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\n", 'utf-8')
+            self.request.sendall(header + bytearray("\r\n", 'utf-8') + uri_data + bytearray("\r\n", 'utf-8'))
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
