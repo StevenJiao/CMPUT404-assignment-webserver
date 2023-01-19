@@ -61,6 +61,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         # see if we're provided an index.html filename or not
         if ('.' not in uri.split('/')[-1]):
+            if (not uri.endswith('/')):
+                self.request.sendall(bytearray("HTTP/1.1 301 Moved Permanently\r\nLocation: " + uri + "/\r\n\r\n", 'utf-8'))
+                return
             uri += "/index.html"
 
         # get the data and send it
