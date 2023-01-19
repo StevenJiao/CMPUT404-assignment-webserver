@@ -29,8 +29,8 @@ import os
 
 
 class MyWebServer(socketserver.BaseRequestHandler):
-    def getDataFromUri(self, folder_name, uri, filename = ""):
-        file_name = os.path.join(folder_name, uri, filename).rstrip('/')
+    def getDataFromUri(self, folder_name, uri):
+        file_name = os.path.join(folder_name, uri).rstrip('/')
         print("file name:", file_name)
         if not os.path.isfile(file_name):
             self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n\r\n", 'utf-8'))
@@ -51,20 +51,21 @@ class MyWebServer(socketserver.BaseRequestHandler):
         request_line = lines[0].decode()
         if len(request_line.split(' ')) == 3:
             method, uri, http_version = request_line.split(' ')
+            print("Method:", method, ", Uri:", uri, ", http_version:", http_version)
         else:
             return
-            
-        print("Method:", method, ", Uri:", uri, ", http_version:", http_version)
 
         # if the method is not GET, send a Method Not Allowed message
         if method != 'GET':
             self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n\r\n", 'utf-8'))
 
         # see if we're provided an index.html filename or not
-        file_name = "index.html" if not (uri.endswith(".html") or uri.endswith(".css")) else ""
+        if ('.' not in uri.split('/')[-1]):
+            uri += "/index.html"
 
         # get the data and send it
-        uri_data = self.getDataFromUri("www", uri.strip('/'), file_name)
+        uri_data = self.getDataFromUri("www", uri.strip('/'))
+
         if uri_data:
             content_type = "text/css" if uri.endswith(".css") else "text/html" 
             header = bytearray("HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\n", 'utf-8')
